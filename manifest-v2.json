@@ -1,0 +1,15 @@
+{
+  "name": "Khayar Geo Info V2",
+  "short_name": "KhayarV2",
+  "description": "نظام التحليل الجيولوجي الذكي — الإصدار الثاني",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030810",
+  "theme_color": "#00e5ff",
+  "orientation": "any",
+  "icons": [
+    { "src": "https://img.icons8.com/fluency/192/satellite.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "https://img.icons8.com/fluency/512/satellite.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "lang": "ar", "dir": "rtl"
+}

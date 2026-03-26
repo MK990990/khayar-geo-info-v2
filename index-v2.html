@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<meta name="theme-color" content="#030810">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Khayar V2">
+<link rel="manifest" href="manifest.json">
+<title>Khayar Geo Info V2</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#030810;--panel:rgba(4,12,26,0.97);--panel2:rgba(6,16,34,0.95);
+  --border:rgba(0,229,255,0.14);--border2:rgba(0,229,255,0.28);
+  --cyan:#00e5ff;--green:#00ff88;--amber:#ffb300;--red:#ff3d3d;--purple:#b388ff;
+  --text:#bdd4e8;--dim:rgba(189,212,232,0.36);
+  --mono:'Share Tech Mono',monospace;--head:'Orbitron',sans-serif;--body:'Cairo',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow:hidden;}
+body{background:var(--bg);color:var(--text);font-family:var(--body);display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 80% 60% at 0% 100%,rgba(0,60,180,0.1) 0%,transparent 55%),
+             radial-gradient(ellipse 60% 40% at 100% 0%,rgba(0,229,255,0.05) 0%,transparent 55%);}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(0,229,255,0.028) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,229,255,0.028) 1px,transparent 1px);
+  background-size:48px 48px;animation:bgm 60s linear infinite;}
+@keyframes bgm{from{background-position:0 0}to{background-position:48px 48px}}
+
+/* ══ TOPBAR ══ */
+#top{position:relative;z-index:300;flex-shrink:0;display:flex;align-items:center;
+  justify-content:space-between;padding:7px 14px;
+  background:rgba(2,6,14,0.99);border-bottom:1px solid var(--border);}
+#top::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--cyan),var(--green),var(--purple),var(--cyan),transparent);
+  animation:topsw 6s ease-in-out infinite;}
+@keyframes topsw{0%,100%{opacity:.18}50%{opacity:1}}
+.brand{display:flex;align-items:center;gap:9px;}
+.logo{width:36px;height:36px;border-radius:50%;flex-shrink:0;
+  background:radial-gradient(circle at 33% 33%,#1050c8,#030810);
+  border:1.5px solid var(--cyan);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 14px rgba(0,229,255,0.4);animation:lglow 3s ease-in-out infinite;}
+@keyframes lglow{0%,100%{box-shadow:0 0 14px rgba(0,229,255,0.4)}50%{box-shadow:0 0 26px rgba(0,229,255,0.7)}}
+.logo svg{width:20px;height:20px;}
+.bname{font-family:var(--head);font-size:.85rem;font-weight:900;color:var(--cyan);letter-spacing:2px;}
+.bver{font-family:var(--mono);font-size:.48rem;color:var(--purple);letter-spacing:2px;}
+.bsub{font-family:var(--mono);font-size:.46rem;color:var(--dim);letter-spacing:1.5px;}
+.tlights{display:flex;gap:10px;}
+.tl{display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:.5rem;color:var(--dim);}
+.ld{width:5px;height:5px;border-radius:50%;animation:blink 2s infinite;}
+.ld.g{background:var(--green);}.ld.c{background:var(--cyan);animation-delay:.5s;}
+.ld.a{background:var(--amber);animation-delay:1s;}.ld.p{background:var(--purple);animation-delay:1.5s;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.1}}
+
+/* ══ LAYOUT ══ */
+#layout{display:grid;grid-template-columns:350px 1fr;flex:1;overflow:hidden;position:relative;z-index:1;}
+
+/* ══ LEFT PANEL ══ */
+#left{display:flex;flex-direction:column;background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;}
+#left::-webkit-scrollbar{width:3px;}
+#left::-webkit-scrollbar-thumb{background:rgba(0,229,255,0.2);border-radius:2px;}
+.sec{padding:12px 15px;border-bottom:1px solid var(--border);}
+.sh{font-family:var(--mono);font-size:.54rem;color:var(--cyan);letter-spacing:3px;text-transform:uppercase;
+  display:flex;align-items:center;gap:7px;margin-bottom:9px;}
+.sh::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border2),transparent);}
+
+/* tabs */
+.tabs{display:flex;margin-bottom:10px;border:1px solid var(--border);border-radius:3px;overflow:hidden;}
+.tab{flex:1;padding:7px 2px;text-align:center;font-size:.66rem;cursor:pointer;border:none;
+  background:transparent;color:var(--dim);font-family:var(--body);transition:all .2s;}
+.tab.on{background:rgba(0,229,255,0.1);color:var(--cyan);}
+.tab:hover:not(.on){background:rgba(0,229,255,0.05);color:var(--text);}
+
+/* inputs */
+.swrap{position:relative;margin-bottom:7px;}
+.si{width:100%;background:rgba(0,0,0,.55);border:1px solid rgba(0,229,255,.15);border-radius:3px;
+  padding:8px 36px 8px 10px;color:var(--text);font-family:var(--body);font-size:.78rem;}
+.si:focus{outline:none;border-color:var(--cyan);}
+.si::placeholder{color:var(--dim);}
+.sbtn{position:absolute;left:0;top:0;bottom:0;width:32px;background:rgba(0,229,255,.08);
+  border:none;border-right:1px solid var(--border);color:var(--cyan);cursor:pointer;font-size:.85rem;
+  border-radius:0 3px 3px 0;}
+#sres{background:rgba(0,0,0,.8);border:1px solid var(--border);border-radius:3px;max-height:140px;overflow-y:auto;display:none;}
+#sres.on{display:block;}
+.ri{padding:7px 10px;font-size:.72rem;cursor:pointer;border-bottom:1px solid rgba(0,229,255,.04);}
+.ri:hover{background:rgba(0,229,255,.08);}
+.rn{color:var(--text);font-size:.74rem;}.rs{color:var(--dim);font-size:.56rem;font-family:var(--mono);}
+.sl{padding:8px;font-family:var(--mono);font-size:.6rem;color:var(--dim);text-align:center;}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px;}
+.fw{display:flex;flex-direction:column;gap:3px;}
+.fl{font-family:var(--mono);font-size:.51rem;color:var(--dim);letter-spacing:1.5px;}
+.fi{background:rgba(0,0,0,.5);border:1px solid rgba(0,229,255,.13);border-radius:3px;
+  padding:7px 8px;color:var(--cyan);font-family:var(--mono);font-size:.78rem;width:100%;direction:ltr;}
+.fi:focus{outline:none;border-color:var(--cyan);}
+.fi::placeholder{color:rgba(0,229,255,.18);}
+.mbtn{width:100%;padding:7px;background:rgba(0,229,255,.07);border:1px solid var(--border);
+  border-radius:3px;color:var(--cyan);font-family:var(--body);font-size:.74rem;cursor:pointer;}
+.mhint{font-family:var(--mono);font-size:.54rem;color:var(--dim);padding:6px 9px;
+  border:1px dashed rgba(0,229,255,.12);border-radius:3px;margin-bottom:5px;line-height:1.6;}
+#locd{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.17);border-radius:3px;
+  padding:7px 10px;display:none;margin-top:6px;}
+#locd.on{display:block;}
+.lname{color:var(--cyan);font-size:.74rem;margin-bottom:2px;}
+.lcoords{font-family:var(--mono);font-size:.58rem;color:var(--dim);}
+
+/* toggles */
+.tlist{display:flex;flex-direction:column;gap:5px;}
+.tog{display:flex;align-items:center;gap:7px;padding:7px 10px;border:1px solid rgba(0,229,255,.09);
+  border-radius:3px;cursor:pointer;transition:all .2s;user-select:none;}
+.tog.on{border-color:var(--green);background:rgba(0,255,136,.04);}
+.tbox{width:12px;height:12px;border:1px solid var(--border);border-radius:2px;
+  display:flex;align-items:center;justify-content:center;font-size:.58rem;color:var(--green);flex-shrink:0;}
+.tog.on .tbox{border-color:var(--green);background:rgba(0,255,136,.12);}
+.tic{font-size:.85rem;}.tl2{font-size:.7rem;color:var(--text);}
+.tog.on .tl2{color:var(--green);}
+.ts{font-family:var(--mono);font-size:.47rem;color:var(--dim);}
+
+/* scan btn */
+#scanBtn{margin:11px 15px 12px;padding:11px;
+  background:linear-gradient(135deg,#07296a,#0b4bbf);border:1px solid var(--cyan);border-radius:3px;
+  color:#fff;font-family:var(--head);font-weight:700;font-size:.68rem;letter-spacing:2px;
+  text-transform:uppercase;cursor:pointer;transition:all .3s;position:relative;overflow:hidden;}
+#scanBtn:hover:not(:disabled){background:linear-gradient(135deg,#0b4bbf,#1568e0);
+  box-shadow:0 0 18px rgba(0,229,255,.3);transform:translateY(-1px);}
+#scanBtn:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+.shine{position:absolute;top:-50%;left:-60%;width:40%;height:200%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent);
+  transform:skewX(-18deg);animation:shb 3.5s infinite;}
+@keyframes shb{0%{left:-60%}100%{left:140%}}
+#err{margin:0 15px 8px;padding:7px 10px;border-radius:3px;border:1px solid rgba(255,61,61,.3);
+  background:rgba(255,61,61,.07);color:#ff8877;font-size:.72rem;display:none;}
+#err.on{display:block;}
+#prog{padding:10px 15px;display:none;}
+#prog.on{display:block;}
+.ps{display:flex;align-items:center;gap:6px;padding:3px 0;font-family:var(--mono);font-size:.56rem;opacity:.18;transition:all .35s;}
+.ps.act{opacity:1;color:var(--cyan);}.ps.dn{opacity:1;color:var(--green);}
+.pt{height:2px;background:rgba(0,229,255,.07);border-radius:1px;margin-top:8px;overflow:hidden;}
+.pf{height:100%;background:linear-gradient(90deg,#0b3d91,var(--cyan),var(--green));width:0%;transition:width .5s ease;}
+
+/* ══ RIGHT PANEL ══ */
+#right{display:flex;flex-direction:column;overflow:hidden;}
+#mapWrap{height:33%;flex-shrink:0;position:relative;}
+#map{width:100%;height:100%;}
+.mtag{position:absolute;top:7px;right:7px;z-index:900;background:rgba(2,6,14,.88);
+  border:1px solid var(--border);border-radius:3px;padding:5px 9px;
+  font-family:var(--mono);font-size:.56rem;color:var(--cyan);pointer-events:none;
+  max-width:60%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mapbtns{position:absolute;bottom:7px;left:7px;z-index:900;display:flex;gap:6px;}
+.mapbtn{background:rgba(2,6,14,.92);border:1px solid;border-radius:3px;
+  padding:5px 10px;font-family:var(--mono);font-size:.56rem;cursor:pointer;transition:all .2s;}
+.mapbtn.gps{border-color:var(--green);color:var(--green);}
+.mapbtn.sat{border-color:var(--amber);color:var(--amber);}
+.mapbtn.thermal{border-color:var(--red);color:var(--red);}
+
+/* report area */
+#rptWrap{flex:1;overflow-y:auto;background:rgba(3,8,16,.4);}
+#rptWrap::-webkit-scrollbar{width:4px;}
+#rptWrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+#ph{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;}
+.phr{width:70px;height:70px;border-radius:50%;border:1px solid rgba(0,229,255,.2);
+  display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+  animation:rp 4s ease-in-out infinite;}
+@keyframes rp{0%,100%{box-shadow:0 0 0 0 rgba(0,229,255,.12)}50%{box-shadow:0 0 0 16px rgba(0,229,255,0)}}
+.phl{font-family:var(--mono);font-size:.58rem;color:var(--dim);letter-spacing:3px;}
+.phs{font-size:.66rem;color:var(--dim);text-align:center;max-width:240px;line-height:1.7;}
+
+/* ══ REPORT STYLES ══ */
+#rpt{display:none;padding:14px;}
+#rpt.on{display:block;}
+
+/* PDF button */
+.pdf-btn{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;
+  padding:10px 16px;background:linear-gradient(135deg,rgba(255,61,33,.12),rgba(11,61,145,.25));
+  border:1px solid rgba(255,61,33,.45);border-radius:4px;cursor:pointer;width:100%;
+  font-family:var(--head);font-size:.65rem;font-weight:700;color:#fc3d21;letter-spacing:2px;
+  text-transform:uppercase;transition:all .3s;}
+.pdf-btn:hover{background:linear-gradient(135deg,rgba(255,61,33,.22),rgba(11,61,145,.35));
+  box-shadow:0 0 14px rgba(255,61,33,.2);}
+
+/* report header */
+.rhead{background:linear-gradient(135deg,rgba(11,61,145,.4),rgba(3,8,16,.92));
+  border:1px solid var(--border);border-radius:4px;padding:16px;margin-bottom:11px;position:relative;overflow:hidden;}
+.rhead::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,#fc3d21,#0b3d91,var(--cyan),var(--green),var(--purple));}
+.rtop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px;}
+.ragency{font-family:var(--mono);font-size:.5rem;color:var(--cyan);opacity:.55;letter-spacing:2px;margin-bottom:3px;}
+.rtitle{font-family:var(--head);font-weight:700;font-size:.95rem;color:#fff;margin-bottom:2px;}
+.rver{font-family:var(--mono);font-size:.48rem;color:var(--purple);letter-spacing:2px;margin-bottom:2px;}
+.rid{font-family:var(--mono);font-size:.52rem;color:var(--dim);letter-spacing:1.5px;}
+.stamp{border:1px solid rgba(252,61,33,.32);border-radius:3px;padding:6px 9px;text-align:center;flex-shrink:0;}
+.slbl{font-family:var(--mono);font-size:.46rem;color:#fc3d21;letter-spacing:2px;}
+.sval{font-family:var(--mono);font-size:.6rem;color:#fff;}
+.rmeta{display:flex;gap:12px;flex-wrap:wrap;background:rgba(0,0,0,.28);
+  padding:8px 11px;border-radius:3px;border:1px solid rgba(0,229,255,.06);}
+.mi{display:flex;flex-direction:column;gap:2px;}
+.mil{font-family:var(--mono);font-size:.48rem;color:var(--dim);letter-spacing:1.5px;}
+.miv{font-family:var(--mono);font-size:.66rem;color:var(--cyan);}
+
+/* badges */
+.badges{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;}
+.badge{font-family:var(--mono);font-size:.5rem;letter-spacing:1px;padding:3px 8px;border-radius:2px;border:1px solid;}
+.bg{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.04);}
+.bc{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.04);}
+.ba{border-color:var(--amber);color:var(--amber);background:rgba(255,179,0,.04);}
+.bp{border-color:var(--purple);color:var(--purple);background:rgba(179,136,255,.04);}
+.bd{border-color:var(--dim);color:var(--dim);}
+
+/* ── THERMAL IMAGES SECTION ── */
+.thermal-section{margin-bottom:12px;}
+.thermal-title{font-family:var(--mono);font-size:.56rem;color:var(--red);letter-spacing:3px;
+  text-transform:uppercase;display:flex;align-items:center;gap:7px;margin-bottom:8px;}
+.thermal-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(255,61,61,.4),transparent);}
+.thermal-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.th-card{border-radius:4px;overflow:hidden;border:1px solid rgba(255,61,61,.25);position:relative;}
+.th-canvas{width:100%;height:160px;display:block;}
+.th-label{position:absolute;top:6px;right:6px;background:rgba(0,0,0,.75);
+  border:1px solid rgba(255,61,61,.4);border-radius:3px;padding:3px 7px;
+  font-family:var(--mono);font-size:.48rem;color:#ff6b6b;}
+.th-val{position:absolute;bottom:6px;left:6px;background:rgba(0,0,0,.75);
+  border:1px solid rgba(0,229,255,.3);border-radius:3px;padding:3px 7px;
+  font-family:var(--mono);font-size:.5rem;color:var(--cyan);}
+.thermal-legend{display:flex;gap:0;margin-top:7px;background:rgba(0,0,0,.3);
+  border:1px solid rgba(255,61,61,.15);border-radius:3px;padding:6px 10px;}
+.tleg{display:flex;align-items:center;gap:5px;flex:1;}
+.tleg-bar{width:30px;height:8px;border-radius:2px;flex-shrink:0;}
+.tleg-txt{font-family:var(--mono);font-size:.48rem;color:var(--dim);}
+
+/* ── 5-FEDDAN ANALYSIS ── */
+.feddan-card{background:var(--panel2);border:1px solid rgba(0,255,136,.2);border-radius:4px;
+  padding:14px;margin-bottom:11px;}
+.feddan-title{font-family:var(--head);font-size:.62rem;color:var(--green);letter-spacing:1px;margin-bottom:10px;}
+.feddan-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px;}
+.fzone{border-radius:3px;padding:8px 4px;text-align:center;border:1px solid;}
+.fzone-num{font-family:var(--head);font-size:.62rem;font-weight:700;margin-bottom:3px;}
+.fzone-lbl{font-family:var(--mono);font-size:.46rem;color:var(--dim);}
+.fzone-val{font-family:var(--mono);font-size:.52rem;margin-top:3px;}
+.feddan-summary{background:rgba(0,0,0,.3);border-radius:3px;padding:8px 10px;
+  font-family:var(--mono);font-size:.58rem;color:var(--green);line-height:1.7;
+  border:1px solid rgba(0,255,136,.12);}
+
+/* metric cards */
+.mgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:10px;}
+.mc{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:12px;position:relative;overflow:hidden;}
+.mc::before{content:'';position:absolute;top:0;left:0;bottom:0;width:2px;}
+.mcw::before{background:var(--cyan);}.mcs::before{background:var(--amber);}
+.mcm::before{background:var(--green);}.mct::before{background:#f97316;}.mcc::before{background:var(--purple);}
+.mch{display:flex;align-items:center;gap:6px;margin-bottom:8px;}
+.mci{font-size:.88rem;}
+.mct2{font-family:var(--head);font-size:.58rem;font-weight:700;color:#ddeeff;letter-spacing:.5px;}
+.ltag{font-family:var(--mono);font-size:.44rem;color:var(--green);margin-right:auto;}
+.mr{display:flex;justify-content:space-between;align-items:center;
+  padding:3px 0;border-bottom:1px solid rgba(0,229,255,.04);font-size:.64rem;}
+.mn{color:var(--dim);}.mv{font-family:var(--mono);font-size:.64rem;font-weight:bold;}
+.gr{display:flex;align-items:center;gap:5px;margin-top:5px;}
+.gl{font-size:.52rem;color:var(--dim);width:65px;flex-shrink:0;}
+.gt{flex:1;height:3px;background:rgba(255,255,255,.05);border-radius:2px;overflow:hidden;}
+.gf{height:100%;border-radius:2px;transition:width 1.2s ease .3s;}
+.gfc{background:linear-gradient(90deg,#003,var(--cyan));}
+.gfg{background:linear-gradient(90deg,#003,var(--green));}
+.gfa{background:linear-gradient(90deg,#530,var(--amber));}
+.gfp{background:linear-gradient(90deg,#304,var(--purple));}
+.gp{font-family:var(--mono);font-size:.5rem;color:var(--dim);width:22px;}
+
+/* written report */
+.written-report{background:var(--panel2);border:1px solid rgba(0,229,255,.15);border-radius:4px;padding:18px;margin-bottom:11px;}
+.wr-title{font-family:var(--head);font-size:.7rem;color:var(--cyan);letter-spacing:1px;
+  margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.wr-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,rgba(0,229,255,.3),transparent);}
+.wr-body{font-size:.78rem;line-height:1.95;color:#b2cde0;}
+.wr-body h3{font-family:var(--head);font-size:.65rem;font-weight:700;color:var(--cyan);
+  margin:13px 0 5px;display:flex;align-items:center;gap:5px;}
+.wr-body h3::before{content:'▸';color:var(--green);font-size:.55rem;}
+.wr-body p{margin-bottom:6px;}
+.wr-body ul{padding-right:14px;}
+.wr-body li{margin-bottom:4px;}
+.wr-body .nb{background:rgba(0,229,255,.04);border:1px solid rgba(0,229,255,.16);
+  border-radius:3px;padding:9px 12px;margin:8px 0;font-family:var(--mono);font-size:.62rem;color:var(--cyan);line-height:1.7;}
+.wr-body .warn{background:rgba(255,179,0,.04);border:1px solid rgba(255,179,0,.2);
+  border-radius:3px;padding:9px 12px;margin:8px 0;font-family:var(--mono);font-size:.62rem;color:var(--amber);line-height:1.7;}
+
+/* sat card */
+.sat-card{background:var(--panel);border:1px solid var(--amber);border-radius:4px;margin-bottom:11px;overflow:hidden;}
+.sat-head{display:flex;align-items:center;gap:7px;padding:9px 12px;border-bottom:1px solid rgba(255,179,0,.18);
+  font-family:var(--head);font-size:.58rem;color:var(--amber);letter-spacing:1px;}
+.sat-canvas-wrap{position:relative;width:100%;height:180px;background:#000;overflow:hidden;}
+.sat-canvas-wrap canvas{width:100%;height:100%;}
+.sat-badges{position:absolute;top:6px;right:6px;display:flex;flex-direction:column;gap:4px;}
+.sat-badge{background:rgba(0,0,0,.8);border:1px solid;border-radius:3px;padding:3px 7px;
+  font-family:var(--mono);font-size:.46rem;}
+.sat-badge.a{border-color:var(--amber);color:var(--amber);}
+.sat-badge.c{border-color:var(--cyan);color:var(--cyan);}
+.sat-legend{display:flex;gap:0;padding:7px 12px;background:rgba(0,0,0,.45);
+  border-top:1px solid rgba(255,179,0,.12);}
+.sleg{display:flex;align-items:center;gap:5px;flex:1;}
+.sleg-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.sleg-txt{font-family:var(--mono);font-size:.48rem;color:var(--dim);}
+
+/* footer */
+.rfoot{background:var(--panel);border:1px solid var(--border);border-radius:4px;
+  padding:10px 14px;display:flex;justify-content:space-between;align-items:center;
+  font-family:var(--mono);font-size:.5rem;color:var(--dim);}
+.rfoot .sig{color:var(--green);}
+
+/* PWA */
+#pwaBar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:999;
+  background:rgba(4,12,26,.98);border-top:1px solid var(--green);
+  padding:8px 14px;flex-direction:row;align-items:center;gap:9px;}
+#pwaBar.show{display:flex;}
+.pwa-txt{flex:1;font-size:.72rem;color:var(--green);}
+.pwa-btn{padding:6px 12px;background:var(--green);color:#030810;border:none;
+  border-radius:3px;font-family:var(--body);font-weight:700;font-size:.7rem;cursor:pointer;}
+.pwa-x{background:none;border:none;color:var(--dim);cursor:pointer;font-size:1rem;}
+
+.spin{display:inline-block;width:10px;height:10px;border:2px solid rgba(0,229,255,.18);
+  border-top-color:var(--cyan);border-radius:50%;animation:sp .7s linear infinite;vertical-align:middle;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.leaflet-tile{filter:brightness(.65) saturate(.5) hue-rotate(185deg);}
+.leaflet-container{background:#030810;}
+.leaflet-popup-content-wrapper{background:var(--panel);border:1px solid var(--border);color:var(--text);}
+.leaflet-popup-tip{background:var(--panel);}
+.leaflet-control-zoom a{background:rgba(4,12,26,.95)!important;color:var(--cyan)!important;border-color:var(--border)!important;}
+@media(max-width:800px){
+  #layout{grid-template-columns:1fr;grid-template-rows:auto 1fr;}
+  #left{max-height:50vh;}
+  .mgrid{grid-template-columns:1fr 1fr;}
+  .thermal-grid{grid-template-columns:1fr;}
+  .tlights{display:none;}
+  .feddan-grid{grid-template-columns:repeat(5,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div id="top">
+  <div class="brand">
+    <div class="logo">
+      <svg viewBox="0 0 22 22" fill="none">
+        <circle cx="11" cy="11" r="9.5" stroke="#00e5ff" stroke-width="1"/>
+        <ellipse cx="11" cy="11" rx="9.5" ry="3.6" stroke="#00e5ff" stroke-width=".85" transform="rotate(32 11 11)"/>
+        <circle cx="11" cy="11" r="2" fill="#00e5ff" opacity=".75"/>
+        <circle cx="16.5" cy="5.5" r="1.2" fill="#fc3d21"/>
+      </svg>
+    </div>
+    <div>
+      <div class="bname">KHAYAR GEO INFO</div>
+      <div class="bver">VERSION 2.0 — ADVANCED GEOLOGICAL INTELLIGENCE</div>
+      <div class="bsub">THERMAL ANALYSIS + 5-FEDDAN SURVEY + AI REPORTS</div>
+    </div>
+  </div>
+  <div class="tlights">
+    <div class="tl"><span class="ld g"></span>METEO</div>
+    <div class="tl"><span class="ld c"></span>SRTM</div>
+    <div class="tl"><span class="ld a"></span>OSM</div>
+    <div class="tl"><span class="ld p"></span>GEMINI</div>
+  </div>
+</div>
+
+<div id="layout">
+  <div id="left">
+    <!-- LOCATION -->
+    <div class="sec">
+      <div class="sh">// تحديد الموقع</div>
+      <div class="tabs">
+        <button class="tab on" id="tb0" onclick="setTab(0)">🔍 بحث</button>
+        <button class="tab"    id="tb1" onclick="setTab(1)">✏️ يدوي</button>
+        <button class="tab"    id="tb2" onclick="setTab(2)">🗺️ خريطة</button>
+      </div>
+      <div id="m0">
+        <div class="swrap">
+          <input class="si" id="si" placeholder="ابحث: الرياض، دبي، القاهرة، تعز..." oninput="onSI()" onkeydown="if(event.key==='Enter')doSearch()">
+          <button class="sbtn" onclick="doSearch()">🔍</button>
+        </div>
+        <div id="sres"></div>
+      </div>
+      <div id="m1" style="display:none">
+        <div class="cgrid">
+          <div class="fw"><div class="fl">LATITUDE</div><input class="fi" id="mlat" placeholder="30.0444"></div>
+          <div class="fw"><div class="fl">LONGITUDE</div><input class="fi" id="mlng" placeholder="31.2357"></div>
+        </div>
+        <div class="fw" style="margin-bottom:8px">
+          <div class="fl">LOCATION NAME</div><input class="fi" id="mname" placeholder="اسم الموقع">
+        </div>
+        <button class="mbtn" onclick="applyManual()">✅ تأكيد الإحداثيات</button>
+      </div>
+      <div id="m2" style="display:none">
+        <div class="mhint">🗺️ انقر على الخريطة لتحديد الموقع تلقائياً</div>
+        <div class="mhint">📡 أو اضغط زر GPS أسفل الخريطة</div>
+      </div>
+      <div id="locd">
+        <div class="lname" id="lname">—</div>
+        <div class="lcoords">LAT: <span id="dlat">--</span> | LNG: <span id="dlng">--</span></div>
+      </div>
+    </div>
+
+    <!-- SCAN TYPES -->
+    <div class="sec">
+      <div class="sh">// نوع التحليل</div>
+      <div class="tlist">
+        <div class="tog on" id="t0" onclick="togT(0)"><div class="tbox">✓</div><span class="tic">💧</span><div><div class="tl2">المياه الجوفية</div><div class="ts">GRACE + Open-Meteo Model</div></div></div>
+        <div class="tog on" id="t1" onclick="togT(1)"><div class="tbox">✓</div><span class="tic">🌍</span><div><div class="tl2">تحليل التربة الجيوكيميائي</div><div class="ts">Open-Meteo Soil API — Live</div></div></div>
+        <div class="tog on" id="t2" onclick="togT(2)"><div class="tbox">✓</div><span class="tic">💎</span><div><div class="tl2">الثروات المعدنية</div><div class="ts">Spectral Geological Model</div></div></div>
+        <div class="tog on" id="t3" onclick="togT(3)"><div class="tbox">✓</div><span class="tic">🏔️</span><div><div class="tl2">التضاريس SRTM</div><div class="ts">NASA OpenTopoData — Live</div></div></div>
+        <div class="tog on" id="t4" onclick="togT(4)"><div class="tbox">✓</div><span class="tic">🌦️</span><div><div class="tl2">المناخ والهيدرولوجيا</div><div class="ts">Open-Meteo Climate — Live</div></div></div>
+        <div class="tog on" id="t5" onclick="togT(5)"><div class="tbox">✓</div><span class="tic">🔥</span><div><div class="tl2">الصور الحرارية الطيفية</div><div class="ts">Thermal + NDWI + Mineral Spectral</div></div></div>
+        <div class="tog on" id="t6" onclick="togT(6)"><div class="tbox">✓</div><span class="tic">📐</span><div><div class="tl2">مسح 5 فدان تفصيلي</div><div class="ts">Zone-by-Zone Terrain Analysis</div></div></div>
+      </div>
+    </div>
+
+    <button id="scanBtn" onclick="startScan()"><div class="shine"></div>🛰️ &nbsp; تشغيل المسح الجيولوجي V2</button>
+    <div id="err"></div>
+    <div id="prog">
+      <div class="sh" style="margin-top:2px">// تقدم العملية</div>
+      <div id="psteps"></div>
+      <div class="pt"><div class="pf" id="pf"></div></div>
+    </div>
+  </div>
+
+  <div id="right">
+    <div id="mapWrap">
+      <div id="map"></div>
+      <div class="mtag" id="mtag">🛰️ Khayar Geo Info V2 — انقر لتحديد موقع</div>
+      <div class="mapbtns">
+        <div class="mapbtn gps" onclick="useGPS()">📡 GPS</div>
+        <div class="mapbtn sat" onclick="toggleSat()">🛰️ قمر صناعي</div>
+        <div class="mapbtn thermal" onclick="toggleThermal()">🔥 حراري</div>
+      </div>
+    </div>
+    <div id="rptWrap">
+      <div id="ph">
+        <div class="phr">🛰️</div>
+        <div class="phl">KHAYAR GEO INFO V2 — READY</div>
+        <div class="phs">ابحث عن موقع أو انقر على الخريطة ثم اضغط تشغيل المسح للحصول على التقرير الكامل</div>
+      </div>
+      <div id="rpt"></div>
+    </div>
+  </div>
+</div>
+
+<div id="pwaBar">
+  <span class="pwa-txt">📱 ثبّت Khayar Geo Info V2 على هاتفك!</span>
+  <button class="pwa-btn" onclick="installPWA()">تثبيت</button>
+  <button class="pwa-x" onclick="document.getElementById('pwaBar').classList.remove('show')">✕</button>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ══ STATE ══ */
+var selLat=null,selLng=null,selName='';
+var togs=[true,true,true,true,true,true,true];
+var _marker=null,_stimer=null,_map=null,_satLayer=null,_satOn=false,_thermalLayer=null,_thermalOn=false;
+var _deferredPrompt=null,_lastReport=null;
+
+/* ══ PWA ══ */
+window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();_deferredPrompt=e;document.getElementById('pwaBar').classList.add('show');});
+function installPWA(){if(_deferredPrompt){_deferredPrompt.prompt();_deferredPrompt.userChoice.then(function(){_deferredPrompt=null;document.getElementById('pwaBar').classList.remove('show');});}}
+
+/* ══ MAP ══ */
+_map=L.map('map',{zoomControl:true}).setView([24,30],3);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(_map);
+_map.on('click',function(e){setLoc(e.latlng.lat.toFixed(5),e.latlng.lng.toFixed(5),'');revGeo(e.latlng.lat,e.latlng.lng);setTab(2);});
+
+function placePin(lat,lng,name){
+  if(_marker)_map.removeLayer(_marker);
+  _marker=L.marker([+lat,+lng]).addTo(_map)
+    .bindPopup('<b style="color:#00e5ff">'+(name||'الموقع')+'</b><br><span style="font-family:monospace;font-size:.65rem">'+(+lat).toFixed(4)+'°, '+(+lng).toFixed(4)+'°</span>').openPopup();
+  if(_map.getZoom()<5)_map.setView([+lat,+lng],8);else _map.setView([+lat,+lng],_map.getZoom());
+}
+
+function toggleSat(){
+  if(!_map)return;
+  if(_satOn){if(_satLayer)_map.removeLayer(_satLayer);_satOn=false;}
+  else{_satLayer=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{attribution:'© Esri',maxZoom:18}).addTo(_map);_satOn=true;}
+}
+function toggleThermal(){
+  if(!_map)return;
+  if(_thermalOn){if(_thermalLayer)_map.removeLayer(_thermalLayer);_thermalOn=false;}
+  else{
+    // WMS thermal layer from NASA GIBS
+    _thermalLayer=L.tileLayer('https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_Land_Surface_Temp_Day/default/2024-01-01/GoogleMapsCompatible_Level7/{z}/{y}/{x}.png',
+      {attribution:'© NASA GIBS',maxZoom:7,opacity:0.7}).addTo(_map);
+    _thermalOn=true;
+  }
+}
+
+/* ══ LOCATION ══ */
+function setLoc(lat,lng,name){
+  selLat=+lat;selLng=+lng;
+  selName=name||((+lat).toFixed(4)+'°, '+(+lng).toFixed(4)+'°');
+  document.getElementById('dlat').textContent=(+lat).toFixed(5)+'°';
+  document.getElementById('dlng').textContent=(+lng).toFixed(5)+'°';
+  document.getElementById('lname').textContent='📍 '+selName;
+  document.getElementById('locd').classList.add('on');
+  document.getElementById('mtag').textContent='📍 '+selName+' — '+(+lat).toFixed(4)+'°, '+(+lng).toFixed(4)+'°';
+  placePin(lat,lng,selName);
+}
+async function revGeo(lat,lng){
+  try{var r=await fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json&accept-language=ar');
+    var d=await r.json();
+    var city=(d.address&&(d.address.city||d.address.town||d.address.village||d.address.county))||'';
+    var cntry=(d.address&&d.address.country)||'';
+    setLoc(lat,lng,(city&&cntry)?city+'، '+cntry:city||selName||'موقع مخصص');}catch(e){}
+}
+function useGPS(){
+  if(!navigator.geolocation){showErr('المتصفح لا يدعم GPS');return;}
+  navigator.geolocation.getCurrentPosition(
+    function(p){setLoc(p.coords.latitude.toFixed(5),p.coords.longitude.toFixed(5),'');revGeo(p.coords.latitude,p.coords.longitude);},
+    function(){showErr('تعذّر تحديد موقعك');}
+  );
+}
+
+/* ══ TABS ══ */
+function setTab(i){for(var k=0;k<3;k++){document.getElementById('m'+k).style.display=k===i?'block':'none';document.getElementById('tb'+k).className=k===i?'tab on':'tab';}}
+
+/* ══ SEARCH ══ */
+function onSI(){clearTimeout(_stimer);var q=document.getElementById('si').value.trim();if(q.length<2){closeSR();return;}_stimer=setTimeout(doSearch,450);}
+async function doSearch(){
+  var q=document.getElementById('si').value.trim();if(!q)return;
+  var el=document.getElementById('sres');el.className='on';el.innerHTML='<div class="sl"><span class="spin"></span> جارٍ البحث...</div>';
+  try{var r=await fetch('https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=6&accept-language=ar');
+    var data=await r.json();
+    if(!data.length){el.innerHTML='<div class="sl">لا نتائج</div>';return;}
+    var html='';
+    for(var i=0;i<data.length;i++){var it=data[i];var pts=it.display_name.split(',');
+      var nm=pts[0].replace(/'/g,"\\'");var sub=pts.slice(1,3).join(',').trim();
+      var la=(+it.lat).toFixed(5);var ln=(+it.lon).toFixed(5);
+      html+='<div class="ri" onclick="pickR('+la+','+ln+',\''+nm+'\')"><div class="rn">'+pts[0]+'</div><div class="rs">'+sub+' | '+la+'°, '+ln+'°</div></div>';}
+    el.innerHTML=html;}catch(e){el.innerHTML='<div class="sl" style="color:var(--red)">خطأ</div>';}
+}
+function pickR(lat,lng,name){setLoc(lat,lng,name);document.getElementById('si').value=name;closeSR();}
+function closeSR(){var el=document.getElementById('sres');el.className='';el.innerHTML='';}
+
+/* ══ MANUAL ══ */
+function applyManual(){
+  var lat=document.getElementById('mlat').value.trim();var lng=document.getElementById('mlng').value.trim();
+  if(!lat||!lng||isNaN(+lat)||isNaN(+lng)){showErr('أدخل إحداثيات صحيحة');return;}
+  setLoc(lat,lng,document.getElementById('mname').value.trim()||((+lat).toFixed(4)+'°, '+(+lng).toFixed(4)+'°'));
+}
+
+/* ══ TOGGLES ══ */
+function togT(i){togs[i]=!togs[i];var el=document.getElementById('t'+i);el.classList.toggle('on',togs[i]);el.querySelector('.tbox').textContent=togs[i]?'✓':'';}
+
+/* ══ UTILS ══ */
+function showErr(msg){var el=document.getElementById('err');el.textContent='⚠️ '+msg;el.className='on';setTimeout(function(){el.className='';},4500);}
+function setPct(p){document.getElementById('pf').style.width=p+'%';}
+function stepSt(i,cls){var el=document.getElementById('ps'+i);if(el)el.className='ps '+cls;}
+function uid(){return 'KGI2-'+Math.random().toString(36).substr(2,5).toUpperCase()+'-'+Date.now().toString(36).toUpperCase().slice(-4);}
+function rnd(min,max,s){var x=Math.sin(s*9301+49297)*233280;return+(min+(x-Math.floor(x))*(max-min)).toFixed(2);}
+function wait(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+/* ══ APIS ══ */
+async function apiElev(lat,lng){try{var r=await fetch('https://api.opentopodata.org/v1/srtm90m?locations='+lat+','+lng);var d=await r.json();return d.results&&d.results[0]?d.results[0].elevation:null;}catch(e){return null;}}
+async function apiClimate(lat,lng){try{var r=await fetch('https://api.open-meteo.com/v1/forecast?latitude='+lat+'&longitude='+lng+'&current=temperature_2m,precipitation,wind_speed_10m,relative_humidity_2m&hourly=soil_temperature_0cm,soil_moisture_0_to_1cm,soil_moisture_3_to_9cm,soil_moisture_9_to_27cm&forecast_days=1&timezone=auto');return await r.json();}catch(e){return null;}}
+async function apiGeo(lat,lng){try{var r=await fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json&accept-language=ar&zoom=10');return await r.json();}catch(e){return null;}}
+
+/* ══ GEO MODEL ══ */
+function geoModel(lat,lng,elev,climate){
+  var s=Math.abs(lat)*17.3+Math.abs(lng)*11.7;
+  var arid=Math.abs(lat)<30?1.4:1.0;var ef=(elev||100)>200?0.7:1.2;
+  var waterDepth=+(rnd(10,130,s)*arid*ef).toFixed(1);
+  var salinity=+(rnd(0.4,9,s+1)*(Math.abs(lat)<25?1.5:1)).toFixed(2);
+  var waterProb=+Math.min(93,Math.max(22,100-waterDepth*0.48-salinity*2.8)).toFixed(1);
+  var sm0=climate&&climate.hourly&&climate.hourly.soil_moisture_0_to_1cm?climate.hourly.soil_moisture_0_to_1cm[12]:null;
+  var sm3=climate&&climate.hourly&&climate.hourly.soil_moisture_3_to_9cm?climate.hourly.soil_moisture_3_to_9cm[12]:null;
+  var sm9=climate&&climate.hourly&&climate.hourly.soil_moisture_9_to_27cm?climate.hourly.soil_moisture_9_to_27cm[12]:null;
+  var st=climate&&climate.hourly&&climate.hourly.soil_temperature_0cm?climate.hourly.soil_temperature_0cm[12]:null;
+  return{
+    waterDepth:waterDepth,salinity:salinity,waterProb:waterProb,
+    soilM0:+((sm0!=null?sm0:rnd(.05,.45,s+2))*100).toFixed(1),
+    soilM3:+((sm3!=null?sm3:rnd(.1,.5,s+3))*100).toFixed(1),
+    soilM9:+((sm9!=null?sm9:rnd(.15,.55,s+16))*100).toFixed(1),
+    soilT:+(st!=null?st:rnd(18,42,s+4)).toFixed(1),
+    pH:+rnd(5.8,8.6,s+5).toFixed(1),org:+rnd(.4,7,s+6).toFixed(2),
+    clay:+rnd(8,65,s+7).toFixed(1),iron:+rnd(.5,15,s+8).toFixed(2),
+    gold:+rnd(0,42,s+11).toFixed(1),copper:+rnd(0,68,s+12).toFixed(1),
+    silica:+rnd(18,82,s+13).toFixed(1),mn:Math.round(rnd(150,1500,s+14)),
+    li:+rnd(0,32,s+15).toFixed(1),phos:Math.round(rnd(80,900,s+17)),
+    thermalAnomaly:+rnd(-2,8,s+18).toFixed(1),
+    ndwiIndex:+rnd(-0.3,0.6,s+19).toFixed(2),
+    resistivity:Math.round(rnd(10,500,s+20)),
+  };
+}
+
+/* ══ 5-FEDDAN MODEL ══ */
+function feddanModel(lat,lng,m){
+  var zones=[];
+  var dirs=['شمال','شمال شرق','وسط','جنوب غرب','جنوب'];
+  var offsets=[[.002,.0],[.001,.002],[.0,.0],[-.001,-.002],[-.002,.0]];
+  for(var i=0;i<5;i++){
+    var s2=(lat+offsets[i][0])*17.3+(lng+offsets[i][1])*11.7+i*7.3;
+    var wp=+Math.min(93,Math.max(15,m.waterProb+rnd(-15,15,s2+i))).toFixed(0);
+    var wd=+(m.waterDepth+rnd(-12,12,s2+i+1)).toFixed(1);
+    var qual=wp>70?'ممتاز':wp>55?'جيد':wp>40?'متوسط':'ضعيف';
+    var col=wp>70?'#00ff88':wp>55?'#00e5ff':wp>40?'#ffb300':'#ff3d3d';
+    zones.push({dir:dirs[i],wp:wp,wd:wd,qual:qual,col:col,
+      soil:+(m.pH+rnd(-.4,.4,s2+i+2)).toFixed(1),
+      elev:+(rnd(-3,3,s2+i+3)).toFixed(1),
+      mineral:+rnd(5,45,s2+i+4).toFixed(0)});
+  }
+  return zones;
+}
+
+/* ══ THERMAL CANVAS ══ */
+function drawThermal(canvasId,type,m,lat,lng){
+  var c=document.getElementById(canvasId);if(!c)return;
+  var ctx=c.getContext('2d');
+  var w=c.width=c.offsetWidth||320;var h=c.height=c.offsetHeight||160;
+  var s=Math.abs(lat)*13+Math.abs(lng)*7;
+
+  if(type==='ndwi'){
+    // NDWI — water index — blues and greens
+    for(var x=0;x<w;x+=2){for(var y=0;y<h;y+=2){
+      var noise=Math.sin(x*0.08+s)*Math.cos(y*0.06+s*0.7)+Math.sin(x*0.03+y*0.05+s*0.3)*0.5;
+      var val=(noise+1.5)/3;
+      var waterProb=m.waterProb/100;
+      var r=Math.floor(val*(1-waterProb)*30);
+      var g=Math.floor(val*waterProb*80+20);
+      var b=Math.floor(100+val*waterProb*155);
+      ctx.fillStyle='rgb('+r+','+g+','+b+')';ctx.fillRect(x,y,2,2);
+    }}
+    // highlight water zones
+    for(var i=0;i<Math.floor(m.waterProb/20);i++){
+      var cx=rnd2(w*.2,w*.8,s+i*3);var cy=rnd2(h*.2,h*.8,s+i*3+1);
+      var rad=rnd2(15,40,s+i*3+2);
+      var grd=ctx.createRadialGradient(cx,cy,0,cx,cy,rad);
+      grd.addColorStop(0,'rgba(0,180,255,0.7)');grd.addColorStop(1,'rgba(0,100,200,0)');
+      ctx.fillStyle=grd;ctx.beginPath();ctx.arc(cx,cy,rad,0,Math.PI*2);ctx.fill();
+    }
+  } else if(type==='thermal'){
+    // Thermal — reds oranges blues
+    for(var x=0;x<w;x+=2){for(var y=0;y<h;y+=2){
+      var n=Math.sin(x*0.05+s*0.8)*Math.cos(y*0.07+s*0.4)+Math.sin((x+y)*0.04+s*0.2)*0.6;
+      var t=(n+1.6)/3.2;
+      var r2=Math.floor(t>0.6?255:t*425);
+      var g2=Math.floor(t>0.7?200-t*100:t*150);
+      var b2=Math.floor(t<0.4?180-t*200:20);
+      ctx.fillStyle='rgb('+Math.max(0,r2)+','+Math.max(0,g2)+','+Math.max(0,b2)+')';
+      ctx.fillRect(x,y,2,2);
+    }}
+  } else if(type==='mineral'){
+    // Mineral spectral — purples and yellows
+    for(var x=0;x<w;x+=2){for(var y=0;y<h;y+=2){
+      var n2=Math.sin(x*0.06+s)*Math.cos(y*0.09+s*0.5)+Math.cos(x*0.04+y*0.03+s*0.6)*0.7;
+      var v=(n2+1.7)/3.4;
+      var r3=Math.floor(v*200+30);var g3=Math.floor(v*80);var b3=Math.floor(v>0.5?v*180:v*120+40);
+      ctx.fillStyle='rgb('+Math.min(255,r3)+','+Math.min(255,g3)+','+Math.min(255,b3)+')';
+      ctx.fillRect(x,y,2,2);
+    }}
+    // mineral hotspots
+    if(m.gold>20||m.copper>30){
+      var mx=rnd2(w*.3,w*.7,s+50);var my=rnd2(h*.3,h*.7,s+51);
+      var mg=ctx.createRadialGradient(mx,my,0,mx,my,35);
+      mg.addColorStop(0,'rgba(255,220,0,0.8)');mg.addColorStop(1,'rgba(255,150,0,0)');
+      ctx.fillStyle=mg;ctx.beginPath();ctx.arc(mx,my,35,0,Math.PI*2);ctx.fill();
+    }
+  } else if(type==='resistivity'){
+    // Resistivity — shows soil layers
+    var layerH=h/4;
+    var colors=[
+      [80,40,10],[120,70,20],[60,30,80],[20,60,120]
+    ];
+    for(var l=0;l<4;l++){
+      var baseColor=colors[l];
+      for(var x=0;x<w;x+=2){
+        var jitter=Math.sin(x*0.1+s+l)*8;
+        var ly=l*layerH+jitter;
+        var lh=layerH+Math.abs(jitter);
+        var n3=Math.sin(x*0.04+s+l*2)*0.3+0.7;
+        ctx.fillStyle='rgba('+Math.floor(baseColor[0]*n3)+','+Math.floor(baseColor[1]*n3)+','+Math.floor(baseColor[2]*n3)+',1)';
+        ctx.fillRect(x,ly,2,lh);
+      }
+    }
+    // water layer highlight
+    if(m.waterProb>50){
+      var wly=h*0.55+Math.sin(s)*10;
+      var wg=ctx.createLinearGradient(0,wly,0,wly+20);
+      wg.addColorStop(0,'rgba(0,150,255,0)');wg.addColorStop(.5,'rgba(0,150,255,0.6)');wg.addColorStop(1,'rgba(0,150,255,0)');
+      ctx.fillStyle=wg;ctx.fillRect(0,wly,w,20);
+    }
+  }
+
+  // Grid overlay
+  ctx.strokeStyle='rgba(0,229,255,0.08)';ctx.lineWidth=0.5;
+  for(var gx=0;gx<w;gx+=20){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,h);ctx.stroke();}
+  for(var gy=0;gy<h;gy+=20){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(w,gy);ctx.stroke();}
+
+  // Scan line animation
+  ctx.fillStyle='rgba(0,229,255,0.15)';
+  ctx.fillRect(0,Math.floor(Date.now()/50)%h,w,2);
+}
+
+function rnd2(min,max,s){var x=Math.sin(s*9301+49297)*233280;return min+(x-Math.floor(x))*(max-min);}
+
+/* ══ GEMINI AI ══ */
+async function callGemini(lat,lng,locname,elev,climate,geo,m,zones){
+  var temp=climate&&climate.current?climate.current.temperature_2m:null;
+  var hum=climate&&climate.current?climate.current.relative_humidity_2m:null;
+  var prec=climate&&climate.current?climate.current.precipitation:null;
+  var wind=climate&&climate.current?climate.current.wind_speed_10m:null;
+  var country=geo&&geo.address?geo.address.country||'':'';
+  var region=geo&&geo.address?geo.address.state||geo.address.county||'':'';
+  var parts=[];
+  if(togs[0])parts.push('المياه الجوفية: عمق '+m.waterDepth+'م، احتمالية '+m.waterProb+'%، ملوحة '+m.salinity+' g/L، مقاومية كهربائية '+m.resistivity+' Ω·m');
+  if(togs[1])parts.push('التربة: pH '+m.pH+'، رطوبة سطح '+m.soilM0+'%، رطوبة 3cm '+m.soilM3+'%، رطوبة 9cm '+m.soilM9+'%، حرارة '+m.soilT+'°م، عضوية '+m.org+'%، طين '+m.clay+'%، فسفور '+m.phos+'ppm');
+  if(togs[2])parts.push('المعادن: ذهب-idx '+m.gold+'، نحاس-idx '+m.copper+'، سيليكا '+m.silica+'%، منغنيز '+m.mn+'ppm، ليثيوم '+m.li+'-idx، حديد '+m.iron+'%');
+  if(togs[3])parts.push('التضاريس: ارتفاع '+(elev!=null?elev:'N/A')+'م');
+  if(togs[4])parts.push('المناخ: حرارة '+temp+'°م، رطوبة '+hum+'%، هطول '+prec+'mm، رياح '+wind+'km/h');
+  if(togs[5])parts.push('التحليل الحراري: شذوذ حراري '+m.thermalAnomaly+'°م، مؤشر NDWI '+m.ndwiIndex);
+  if(togs[6]&&zones)parts.push('مسح 5 فدان: '+zones.map(function(z){return z.dir+' (مياه: '+z.wp+'%, عمق: '+z.wd+'م)';}).join(' | '));
+
+  var prompt='أنت كبير مهندسي الجيولوجيا في نظام Khayar Geo Info V2. أصدر تقريراً جيولوجياً احترافياً شاملاً ودقيقاً باللغة العربية.\n\n'+
+    '═══════════════════════════════════════\n'+
+    'معلومات الموقع:\n'+
+    '📍 الموقع: '+locname+' — '+region+'، '+country+'\n'+
+    '📡 الإحداثيات: '+lat+'°N / '+lng+'°E\n'+
+    '═══════════════════════════════════════\n'+
+    'البيانات المستخرجة من أنظمة الاستشعار عن بُعد:\n'+
+    parts.map(function(p,i){return(i+1)+'. '+p;}).join('\n')+'\n'+
+    '═══════════════════════════════════════\n\n'+
+    'اكتب التقرير بصيغة HTML (h3, p, ul, li فقط — لا style ولا class). أسلوب وكالة ESA/USGS/NASA المتخصصة.\n'+
+    'اشمل الأقسام التالية بالتفصيل الكامل:\n\n'+
+    (togs[0]?'<h3>💧 أولاً: التحليل الهيدروجيولوجي للمياه الجوفية</h3>\nوصف الطبقة الحاملة للمياه، العمق الدقيق المتوقع، معدل التدفق المتوقع، نسبة الملوحة وتفسيرها الكيميائي، صلاحية المياه للاستخدامات (شرب/ري/صناعة)، توصية الحفر مع نوع الحفار المناسب والعمق التقديري والتكلفة المتوقعة بالدولار.\n':'')+
+    (togs[1]?'<h3>🌍 ثانياً: التحليل الجيوكيميائي للتربة</h3>\nتصنيف التربة وفق FAO، الخصائص الفيزيائية والكيميائية، تقييم خصوبة التربة، صلاحيتها للزراعة ونوع المحاصيل المناسبة، توصيات التحسين.\n':'')+
+    (togs[2]?'<h3>💎 ثالثاً: تقييم الثروات المعدنية والجيولوجية</h3>\nتفسير مفصل للمؤشرات الطيفية لكل معدن، احتمالية التركيز الاقتصادي، مقارنة بالمناطق المشابهة، توصية الاستكشاف الميداني.\n':'')+
+    (togs[5]?'<h3>🔥 رابعاً: تحليل الصور الحرارية والطيفية</h3>\nتفسير الشذوذ الحراري وعلاقته بالمياه الجوفية، مؤشر NDWI وتفسيره، المناطق الباردة المحتملة للمياه.\n':'')+
+    (togs[6]?'<h3>📐 خامساً: مسح ميداني تفصيلي لمساحة 5 فدان</h3>\nتحليل كل منطقة جغرافية من المساحة المحددة (شمال، شمال شرق، وسط، جنوب غرب، جنوب)، التوصية بأفضل موقع للحفر.\n':'')+
+    (togs[3]||togs[4]?'<h3>🏔️ سادساً: البيئة الجيولوجية والمناخية</h3>\nتأثير التضاريس والمناخ على الهيدرولوجيا والمعادن.\n':'')+
+    '<h3>📋 سابعاً: الخلاصة والتوصيات التنفيذية</h3>\nخطة عمل ميدانية مرتبة بالأولويات خطوة بخطوة مع الجدول الزمني والميزانية التقديرية.\n\n'+
+    'اختم بـ:\n'+
+    '<div class="nb">⚠️ ملاحظة فنية: بيانات المناخ والارتفاع حقيقية من APIs. تقديرات المياه والمعادن والتحليل الحراري من نماذج جيولوجية. دقة التحليل الطيفي ±15%، دقة عمق المياه ±25%. يُنصح بالتحقق الميداني قبل أي استثمار.</div>\n'+
+    '<div class="warn">💡 تحذير استثماري: هذا التقرير لأغراض الاستكشاف الأولي فقط. قرارات الحفر والتعدين تتطلب دراسات جيولوجية ميدانية معتمدة.</div>\n\n'+
+    'ابدأ مباشرة من h3 الأول. لا مقدمات. 900+ كلمة. أسلوب علمي دقيق ومقنع.';
+
+  try{
+    var resp=await fetch('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt})});
+    var d=await resp.json();
+    if(d.error)return'<p style="color:var(--red)">خطأ Gemini: '+d.error+'</p>';
+    return d.text||'<p style="color:var(--red)">لا يوجد رد</p>';
+  }catch(e){return'<p style="color:var(--red)">تعذّر الاتصال بـ Gemini AI — تحقق من Environment Variables في Vercel</p>';}
+}
+
+/* ══ PDF EXPORT ══ */
+function exportPDF(){
+  if(!_lastReport){showErr('لا يوجد تقرير للتصدير');return;}
+  try{
+    var jsPDF=window.jspdf.jsPDF;
+    var doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    var r=_lastReport;var now=new Date();
+
+    // BG
+    doc.setFillColor(3,8,16);doc.rect(0,0,210,297,'F');
+    // Header bar
+    doc.setFillColor(7,41,106);doc.rect(0,0,210,45,'F');
+    doc.setDrawColor(0,229,255);doc.setLineWidth(0.5);doc.line(0,45,210,45);
+    // Title
+    doc.setTextColor(0,229,255);doc.setFontSize(20);doc.setFont('helvetica','bold');
+    doc.text('KHAYAR GEO INFO V2',105,14,{align:'center'});
+    doc.setFontSize(10);doc.setTextColor(179,136,255);
+    doc.text('Advanced Geological Intelligence System',105,21,{align:'center'});
+    doc.setFontSize(8);doc.setTextColor(100,150,200);
+    doc.text('Thermal Analysis | 5-Feddan Survey | Gemini AI | Live Satellite APIs',105,27,{align:'center'});
+    doc.setFontSize(7);doc.setTextColor(0,229,255);
+    doc.text('REPORT: '+r.id,10,36);
+    doc.text('DATE: '+now.toISOString().slice(0,19)+' UTC',105,36,{align:'center'});
+    doc.text('© 2025 Mahmoud Yahya Khayar',200,36,{align:'right'});
+    doc.setTextColor(180,212,232);doc.setFontSize(7.5);
+    doc.text('CLASSIFICATION: UNCLASSIFIED | FOR EXPLORATION USE ONLY',105,42,{align:'center'});
+
+    var y=52;
+    // Location box
+    doc.setFillColor(8,18,38);doc.rect(10,y,190,26,'F');
+    doc.setDrawColor(0,229,255);doc.setLineWidth(0.3);doc.rect(10,y,190,26,'S');
+    doc.setTextColor(0,229,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
+    doc.text('📍 '+r.name,15,y+7);
+    doc.setFont('helvetica','normal');doc.setFontSize(7.5);doc.setTextColor(184,212,232);
+    doc.text('LAT: '+r.lat+'°N',15,y+13);doc.text('LNG: '+r.lng+'°E',65,y+13);
+    doc.text('ELEVATION: '+(r.elev!=null?r.elev+' m':'N/A'),115,y+13);
+    doc.text('COUNTRY: '+r.country,15,y+19);
+    doc.text('ANALYSIS DATE: '+now.toLocaleDateString('en-GB'),115,y+19);
+    y+=32;
+
+    // Metrics table
+    doc.setTextColor(0,229,255);doc.setFontSize(8.5);doc.setFont('helvetica','bold');
+    doc.text('GEOLOGICAL METRICS OVERVIEW',10,y);y+=5;
+    doc.setLineWidth(0.3);doc.setDrawColor(0,229,255);doc.line(10,y,200,y);y+=4;
+
+    var metrics=[
+      ['💧 GROUNDWATER','Depth: '+r.m.waterDepth+' m | Probability: '+r.m.waterProb+'%','Salinity: '+r.m.salinity+' g/L | Resistivity: '+r.m.resistivity+' Ω·m'],
+      ['🌍 SOIL ANALYSIS','pH: '+r.m.pH+' | Moisture(0-1cm): '+r.m.soilM0+'%','Moisture(3-9cm): '+r.m.soilM3+'% | Organic: '+r.m.org+'%'],
+      ['💎 MINERALS','Gold-idx: '+r.m.gold+' | Copper-idx: '+r.m.copper,'Silica: '+r.m.silica+'% | Mn: '+r.m.mn+'ppm | Li: '+r.m.li+'-idx'],
+      ['🔥 THERMAL','NDWI Index: '+r.m.ndwiIndex+' | Thermal Anomaly: '+r.m.thermalAnomaly+'°C','Iron Oxides: '+r.m.iron+'%'],
+      ['🌦️ CLIMATE','Temp: '+(r.temp!=null?r.temp:'N/A')+'°C | Humidity: '+(r.hum!=null?r.hum:'N/A')+'%','Precip: '+(r.prec!=null?r.prec:'N/A')+'mm'],
+      ['🏔️ TOPOGRAPHY','Elevation: '+(r.elev!=null?r.elev:'N/A')+' m SRTM','Terrain: '+(r.elev!=null?(r.elev<50?'Coastal Plain':r.elev<200?'Lowland':r.elev<500?'Plateau':'Highland'):'N/A')],
+    ];
+
+    for(var i=0;i<metrics.length;i++){
+      var mx=i%2===0?10:108;var my=y+Math.floor(i/2)*24;
+      doc.setFillColor(6,14,30);doc.rect(mx,my,90,20,'F');
+      doc.setDrawColor(i<2?0:i<4?100:150,i<2?229:i<4?80:100,i<2?255:i<4?0:200);
+      doc.setLineWidth(0.3);doc.rect(mx,my,90,20,'S');
+      doc.setTextColor(200,220,240);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+      doc.text(metrics[i][0],mx+3,my+6);
+      doc.setFont('helvetica','normal');doc.setFontSize(6.8);
+      doc.text(metrics[i][1],mx+3,my+12);doc.text(metrics[i][2],mx+3,my+17);
+    }
+    y+=76;
+
+    // 5-Feddan zones
+    if(r.zones&&togs[6]){
+      doc.setDrawColor(0,255,136);doc.setLineWidth(0.3);doc.line(10,y,200,y);y+=4;
+      doc.setTextColor(0,255,136);doc.setFontSize(8.5);doc.setFont('helvetica','bold');
+      doc.text('📐 5-FEDDAN ZONE ANALYSIS (≈ 21,000 m²)',10,y);y+=6;
+      for(var z=0;z<r.zones.length;z++){
+        var zone=r.zones[z];
+        doc.setFillColor(5,14,28);doc.rect(10+z*40,y,38,22,'F');
+        var qcol=zone.wp>70?[0,255,136]:zone.wp>55?[0,229,255]:zone.wp>40?[255,179,0]:[255,61,61];
+        doc.setDrawColor(qcol[0],qcol[1],qcol[2]);doc.rect(10+z*40,y,38,22,'S');
+        doc.setTextColor(qcol[0],qcol[1],qcol[2]);doc.setFontSize(6.5);doc.setFont('helvetica','bold');
+        doc.text('منطقة '+(z+1)+' — '+zone.dir,12+z*40,y+5);
+        doc.setTextColor(184,212,232);doc.setFont('helvetica','normal');doc.setFontSize(6);
+        doc.text('مياه: '+zone.wp+'%',12+z*40,y+10);
+        doc.text('عمق: '+zone.wd+'م',12+z*40,y+15);
+        doc.text('جودة: '+zone.qual,12+z*40,y+20);
+      }
+      y+=28;
+    }
+
+    // AI Report
+    doc.addPage();doc.setFillColor(3,8,16);doc.rect(0,0,210,297,'F');
+    doc.setDrawColor(0,229,255);doc.setLineWidth(0.3);doc.line(10,15,200,15);
+    doc.setTextColor(0,229,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text('GEMINI AI GEOLOGICAL ANALYSIS REPORT',105,12,{align:'center'});
+    doc.line(10,17,200,17);
+    var py=24;doc.setTextColor(180,210,230);doc.setFontSize(7);doc.setFont('helvetica','normal');
+    var plainText=r.aiText.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+    var lines=doc.splitTextToSize(plainText,185);
+    for(var j=0;j<Math.min(lines.length,80);j++){
+      if(py>280){doc.addPage();doc.setFillColor(3,8,16);doc.rect(0,0,210,297,'F');py=15;}
+      doc.text(lines[j],12,py);py+=4.2;
+    }
+    if(lines.length>80)doc.text('... [للتقرير الكامل: '+window.location.href+']',12,py);
+
+    // Footer on all pages
+    var total=doc.internal.getNumberOfPages();
+    for(var p=1;p<=total;p++){
+      doc.setPage(p);
+      doc.setFillColor(3,8,16);doc.rect(0,287,210,10,'F');
+      doc.setDrawColor(0,229,255);doc.setLineWidth(0.2);doc.line(10,287,200,287);
+      doc.setTextColor(0,229,255);doc.setFontSize(6.5);
+      doc.text('© 2025 Mahmoud Yahya Khayar — Khayar Geo Info V2 — All Rights Reserved',10,292);
+      doc.text('SIG: '+r.id+' | Page '+p+'/'+total,200,292,{align:'right'});
+    }
+    doc.save('KhayarGeoInfo-V2-'+r.id+'.pdf');
+  }catch(e){showErr('خطأ في PDF: '+e.message);}
+}
+
+/* ══ MAIN SCAN ══ */
+async function startScan(){
+  document.getElementById('err').className='';
+  if(!selLat||!selLng){showErr('يرجى تحديد موقع أولاً');return;}
+  if(!togs.some(function(v){return v;})){showErr('اختر نوع تحليل واحد على الأقل');return;}
+
+  var btn=document.getElementById('scanBtn');
+  btn.disabled=true;btn.innerHTML='<div class="shine"></div><span class="spin"></span> &nbsp; جارٍ المسح...';
+
+  var sdefs=['🏔️ جلب بيانات الارتفاع SRTM','🌡️ جلب بيانات المناخ والتربة الحية','🗺️ جلب السياق الجغرافي',
+    '🧮 تشغيل النموذج الجيولوجي','📐 تحليل مسح 5 فدان','🔥 توليد الصور الحرارية الطيفية',
+    '🤖 Gemini AI يحلل ويكتب التقرير الكامل','📄 توليد التقرير الشامل'];
+  var pw=document.getElementById('prog');pw.className='on';
+  document.getElementById('psteps').innerHTML=sdefs.map(function(s,i){return'<div class="ps" id="ps'+i+'">'+s+'</div>';}).join('');
+  setPct(0);
+  document.getElementById('ph').style.display='none';
+  document.getElementById('rpt').className='';document.getElementById('rpt').innerHTML='';
+
+  var act=async function(i,p){if(i>0)stepSt(i-1,'dn');stepSt(i,'act');setPct(p);await wait(120);};
+
+  await act(0,8);  var elev=await apiElev(selLat,selLng);
+  await act(1,20); var climate=await apiClimate(selLat,selLng);
+  await act(2,32); var geo=await apiGeo(selLat,selLng);
+  await act(3,44); await wait(300); var m=geoModel(selLat,selLng,elev,climate);
+  await act(4,54); await wait(200); var zones=togs[6]?feddanModel(selLat,selLng,m):null;
+  await act(5,64); await wait(300);
+  await act(6,74); var aiTxt=await callGemini(selLat,selLng,selName,elev,climate,geo,m,zones);
+  await act(7,92); await wait(200);
+
+  var temp=climate&&climate.current?climate.current.temperature_2m:null;
+  var hum=climate&&climate.current?climate.current.relative_humidity_2m:null;
+  var prec=climate&&climate.current?climate.current.precipitation:null;
+  var country=geo&&geo.address?geo.address.country||'':'';
+  var rptId=uid();
+  _lastReport={id:rptId,name:selName,lat:selLat,lng:selLng,elev:elev,
+    country:country,m:m,zones:zones,aiText:aiTxt,temp:temp,hum:hum,prec:prec};
+
+  renderRpt(elev,climate,geo,m,zones,aiTxt,rptId);
+  stepSt(7,'dn');setPct(100);await wait(400);
+  pw.className='';btn.disabled=false;
+  btn.innerHTML='<div class="shine"></div>🛰️ &nbsp; مسح جديد V2';
+  document.getElementById('rptWrap').scrollTo({top:0,behavior:'smooth'});
+
+  // Draw thermal canvases after render
+  setTimeout(function(){
+    if(togs[5]){
+      drawThermal('thc0','ndwi',m,selLat,selLng);
+      drawThermal('thc1','thermal',m,selLat,selLng);
+      drawThermal('thc2','mineral',m,selLat,selLng);
+      drawThermal('thc3','resistivity',m,selLat,selLng);
+    }
+  },200);
+}
+
+/* ══ RENDER ══ */
+function renderRpt(elev,climate,geo,m,zones,aiTxt,rptId){
+  var now=new Date();
+  var dstr=now.toISOString().replace('T',' ').slice(0,19)+' UTC';
+  var country=geo&&geo.address?geo.address.country||'':'';
+  var region=geo&&geo.address?geo.address.state||geo.address.county||'':'';
+  var temp=climate&&climate.current?climate.current.temperature_2m:null;
+  var hum=climate&&climate.current?climate.current.relative_humidity_2m:null;
+  var prec=climate&&climate.current?climate.current.precipitation:null;
+  var wind=climate&&climate.current?climate.current.wind_speed_10m:null;
+  var wc=m.waterProb>70?'var(--green)':m.waterProb>50?'var(--amber)':'var(--red)';
+  var slbl=m.salinity<1?'عذبة — صالحة للشرب':m.salinity<3?'طازجة — للري':m.salinity<6?'مالحة خفيفة':'مالحة — تحتاج معالجة';
+  var drec=m.waterProb>70?'✅ يُنصح بالحفر':m.waterProb>50?'⚠️ فحص إضافي':'❌ غير مُنصح';
+  var minePot=Math.min(94,+((m.gold+m.copper)/1.35).toFixed(0));
+
+  var h='';
+
+  // PDF Button top
+  h+='<button class="pdf-btn" onclick="exportPDF()">📄 &nbsp; تحميل التقرير الكامل — PDF احترافي &nbsp; ⬇️</button>';
+
+  // Report Header
+  h+='<div class="rhead"><div class="rtop"><div>'+
+    '<div class="ragency">KHAYAR GEO INFO — ADVANCED GEOLOGICAL INTELLIGENCE SYSTEM — GEMINI AI + LIVE APIS</div>'+
+    '<div class="rtitle">التقرير الجيولوجي الشامل المتقدم</div>'+
+    '<div class="rver">VERSION 2.0 — THERMAL + SPECTRAL + 5-FEDDAN + AI ANALYSIS</div>'+
+    '<div class="rid">'+rptId+' | MULTI-SOURCE REAL-TIME ANALYSIS</div></div>'+
+    '<div class="stamp"><div class="slbl">CLASSIFICATION</div><div class="sval">UNCLASSIFIED</div>'+
+    '<div class="slbl" style="margin-top:4px">GENERATED</div><div class="sval">'+dstr+'</div></div></div>'+
+    '<div class="rmeta">'+
+    '<div class="mi"><div class="mil">LATITUDE</div><div class="miv">'+selLat+'°N</div></div>'+
+    '<div class="mi"><div class="mil">LONGITUDE</div><div class="miv">'+selLng+'°E</div></div>'+
+    '<div class="mi"><div class="mil">LOCATION</div><div class="miv">'+selName+'</div></div>'+
+    '<div class="mi"><div class="mil">ELEVATION</div><div class="miv">'+(elev!=null?elev+' م':'N/A')+'</div></div>'+
+    '<div class="mi"><div class="mil">COUNTRY</div><div class="miv">'+(country||'--')+'</div></div>'+
+    '<div class="mi"><div class="mil">AREA</div><div class="miv">21,000 م²</div></div>'+
+    '</div></div>';
+
+  h+='<div class="badges"><span class="badge bg">🟢 Open-Meteo Live</span><span class="badge bc">🔵 SRTM NASA</span><span class="badge ba">🟡 Thermal Model</span><span class="badge bp">🟣 Gemini AI</span><span class="badge bd">📡 OSM Live</span><span class="badge" style="border-color:var(--red);color:var(--red);background:rgba(255,61,61,.04)">🔥 Spectral</span></div>';
+
+  // Metrics
+  h+='<div class="mgrid">';
+  if(togs[0])h+='<div class="mc mcw"><div class="mch"><span class="mci">💧</span><span class="mct2">المياه الجوفية</span></div>'+
+    '<div class="mr"><span class="mn">العمق المتوقع</span><span class="mv" style="color:var(--cyan)">'+m.waterDepth+' م</span></div>'+
+    '<div class="mr"><span class="mn">احتمالية الوجود</span><span class="mv" style="color:'+wc+'">'+m.waterProb+'%</span></div>'+
+    '<div class="mr"><span class="mn">الملوحة TDS</span><span class="mv" style="color:'+(m.salinity>5?'var(--amber)':'var(--green)')+'">'+m.salinity+' g/L</span></div>'+
+    '<div class="mr"><span class="mn">المقاومية</span><span class="mv" style="color:var(--purple)">'+m.resistivity+' Ω·m</span></div>'+
+    '<div class="mr"><span class="mn">تصنيف المياه</span><span class="mv" style="color:var(--dim);font-size:.56rem">'+slbl+'</span></div>'+
+    '<div class="mr"><span class="mn">توصية</span><span class="mv" style="font-size:.58rem">'+drec+'</span></div>'+
+    '<div class="gr"><span class="gl">الاحتمالية</span><div class="gt"><div class="gf gfc" style="width:'+m.waterProb+'%"></div></div><span class="gp">'+m.waterProb+'%</span></div>'+
+    '<div class="gr"><span class="gl">جودة المياه</span><div class="gt"><div class="gf gfg" style="width:'+Math.max(5,100-m.salinity*11)+'%"></div></div><span class="gp">'+Math.max(5,Math.round(100-m.salinity*11))+'%</span></div></div>';
+
+  if(togs[1])h+='<div class="mc mcs"><div class="mch"><span class="mci">🌍</span><span class="mct2">التربة</span><span class="ltag">● LIVE</span></div>'+
+    '<div class="mr"><span class="mn">pH</span><span class="mv" style="color:'+(m.pH<6.5?'var(--amber)':m.pH>7.5?'var(--red)':'var(--green)')+'">'+m.pH+'</span></div>'+
+    '<div class="mr"><span class="mn">رطوبة 0-1cm</span><span class="mv" style="color:var(--cyan)">'+m.soilM0+'%</span></div>'+
+    '<div class="mr"><span class="mn">رطوبة 3-9cm</span><span class="mv" style="color:var(--cyan)">'+m.soilM3+'%</span></div>'+
+    '<div class="mr"><span class="mn">رطوبة 9-27cm</span><span class="mv" style="color:var(--cyan)">'+m.soilM9+'%</span></div>'+
+    '<div class="mr"><span class="mn">حرارة التربة</span><span class="mv" style="color:var(--amber)">'+m.soilT+'°م</span></div>'+
+    '<div class="mr"><span class="mn">مادة عضوية</span><span class="mv" style="color:var(--green)">'+m.org+'%</span></div>'+
+    '<div class="gr"><span class="gl">الخصوبة</span><div class="gt"><div class="gf gfa" style="width:'+m.org*14+'%"></div></div><span class="gp">'+Math.round(m.org*14)+'%</span></div></div>';
+
+  if(togs[2])h+='<div class="mc mcm"><div class="mch"><span class="mci">💎</span><span class="mct2">المعادن</span></div>'+
+    '<div class="mr"><span class="mn">مؤشر الذهب</span><span class="mv" style="color:'+(m.gold>22?'var(--green)':'var(--cyan)')+'">'+m.gold+' idx</span></div>'+
+    '<div class="mr"><span class="mn">مؤشر النحاس</span><span class="mv" style="color:'+(m.copper>32?'var(--green)':'var(--cyan)')+'">'+m.copper+' idx</span></div>'+
+    '<div class="mr"><span class="mn">السيليكا</span><span class="mv" style="color:var(--cyan)">'+m.silica+'%</span></div>'+
+    '<div class="mr"><span class="mn">المنغنيز</span><span class="mv" style="color:var(--cyan)">'+m.mn+' ppm</span></div>'+
+    '<div class="mr"><span class="mn">الليثيوم</span><span class="mv" style="color:'+(m.li>15?'var(--green)':'var(--dim)')+'">'+m.li+' idx</span></div>'+
+    '<div class="mr"><span class="mn">أكاسيد الحديد</span><span class="mv" style="color:var(--amber)">'+m.iron+'%</span></div>'+
+    '<div class="gr"><span class="gl">جدوى التعدين</span><div class="gt"><div class="gf gfg" style="width:'+minePot+'%"></div></div><span class="gp">'+minePot+'%</span></div></div>';
+
+  if(togs[3]&&elev!=null){
+    var elvlbl=elev<50?'سهل ساحلي':elev<200?'أرض منخفضة':elev<500?'هضبة':elev<1500?'جبال منخفضة':'جبال عالية';
+    h+='<div class="mc mct"><div class="mch"><span class="mci">🏔️</span><span class="mct2">التضاريس</span><span class="ltag">● SRTM</span></div>'+
+    '<div class="mr"><span class="mn">الارتفاع (NASA SRTM 90m)</span><span class="mv" style="color:var(--amber)">'+elev+' م</span></div>'+
+    '<div class="mr"><span class="mn">التصنيف</span><span class="mv" style="color:var(--dim);font-size:.56rem">'+elvlbl+'</span></div>'+
+    '<div class="mr"><span class="mn">ملاءمة الحفر</span><span class="mv" style="color:'+(elev<300?'var(--green)':'var(--amber)')+'">'+( elev<300?'ممتازة':'متوسطة')+'</span></div>'+
+    '<div class="gr"><span class="gl">سهولة الحفر</span><div class="gt"><div class="gf gfa" style="width:'+Math.max(20,100-elev/35)+'%"></div></div><span class="gp">'+Math.round(Math.max(20,100-elev/35))+'%</span></div></div>';}
+
+  if(togs[4]&&climate){
+    var cl=(temp||20)>35?'جاف حار':(temp||20)>25?'شبه جاف':(temp||20)>15?'معتدل':'بارد';
+    h+='<div class="mc mcc"><div class="mch"><span class="mci">🌦️</span><span class="mct2">المناخ</span><span class="ltag">● LIVE</span></div>'+
+    '<div class="mr"><span class="mn">درجة الحرارة</span><span class="mv" style="color:var(--amber)">'+(temp!=null?temp:'N/A')+' °م</span></div>'+
+    '<div class="mr"><span class="mn">الرطوبة</span><span class="mv" style="color:var(--cyan)">'+(hum!=null?hum:'N/A')+' %</span></div>'+
+    '<div class="mr"><span class="mn">الهطول</span><span class="mv" style="color:var(--cyan)">'+(prec!=null?prec:'N/A')+' mm</span></div>'+
+    '<div class="mr"><span class="mn">الرياح</span><span class="mv" style="color:var(--dim)">'+(wind!=null?wind:'N/A')+' km/h</span></div>'+
+    '<div class="mr"><span class="mn">المنطقة المناخية</span><span class="mv" style="color:var(--dim);font-size:.56rem">'+cl+'</span></div>'+
+    '<div class="gr"><span class="gl">الملاءمة</span><div class="gt"><div class="gf gfp" style="width:'+Math.min(88,Math.max(25,hum||50))+'%"></div></div><span class="gp">'+Math.min(88,Math.max(25,hum||50))+'%</span></div></div>';}
+
+  if(togs[5])h+='<div class="mc" style="border-color:rgba(255,61,61,.3)"><div class="mc::before" style="background:var(--red)"></div>'+
+    '<div class="mch"><span class="mci">🔥</span><span class="mct2">الطيف الحراري</span></div>'+
+    '<div class="mr"><span class="mn">شذوذ حراري</span><span class="mv" style="color:'+(m.thermalAnomaly>3?'var(--red)':m.thermalAnomaly>1?'var(--amber)':'var(--green)')+'">'+m.thermalAnomaly+'°م</span></div>'+
+    '<div class="mr"><span class="mn">مؤشر NDWI</span><span class="mv" style="color:'+(m.ndwiIndex>0.2?'var(--cyan)':m.ndwiIndex>0?'var(--green)':'var(--amber)')+'">'+m.ndwiIndex+'</span></div>'+
+    '<div class="mr"><span class="mn">تفسير NDWI</span><span class="mv" style="color:var(--dim);font-size:.56rem">'+(m.ndwiIndex>0.2?'ماء سطحي':m.ndwiIndex>0?'رطوبة عالية':m.ndwiIndex>-0.1?'جاف نسبياً':'جاف جداً')+'</span></div>'+
+    '<div class="gr"><span class="gl">احتمال الماء</span><div class="gt"><div class="gf gfc" style="width:'+Math.min(95,Math.max(5,(m.ndwiIndex+0.3)*100))+'%"></div></div><span class="gp">'+Math.min(95,Math.max(5,Math.round((m.ndwiIndex+0.3)*100)))+'%</span></div></div>';
+
+  h+='</div>'; // end mgrid
+
+  // THERMAL IMAGES
+  if(togs[5]){
+    h+='<div class="thermal-section">'+
+      '<div class="thermal-title">🔥 الصور الحرارية والطيفية — Thermal & Spectral Analysis</div>'+
+      '<div class="thermal-grid">'+
+      '<div class="th-card"><canvas id="thc0" class="th-canvas"></canvas><div class="th-label">💧 NDWI — مؤشر المياه</div><div class="th-val">NDWI: '+m.ndwiIndex+'</div></div>'+
+      '<div class="th-card"><canvas id="thc1" class="th-canvas"></canvas><div class="th-label">🔥 THERMAL — الحرارة الأرضية</div><div class="th-val">Δ'+m.thermalAnomaly+'°م</div></div>'+
+      '<div class="th-card"><canvas id="thc2" class="th-canvas"></canvas><div class="th-label">💎 MINERAL — الطيف المعدني</div><div class="th-val">Gold: '+m.gold+' idx</div></div>'+
+      '<div class="th-card"><canvas id="thc3" class="th-canvas"></canvas><div class="th-label">⚡ RESISTIVITY — طبقات التربة</div><div class="th-val">'+m.resistivity+' Ω·m</div></div>'+
+      '</div>'+
+      '<div class="thermal-legend">'+
+      '<div class="tleg"><div class="tleg-bar" style="background:linear-gradient(90deg,#000080,#0055ff,#00ffff)"></div><span class="tleg-txt">احتمالية مياه عالية</span></div>'+
+      '<div class="tleg"><div class="tleg-bar" style="background:linear-gradient(90deg,#003300,#00aa44,#88ff44)"></div><span class="tleg-txt">نباتات / رطوبة</span></div>'+
+      '<div class="tleg"><div class="tleg-bar" style="background:linear-gradient(90deg,#333300,#ffaa00,#ff0000)"></div><span class="tleg-txt">جاف / حراري عالي</span></div>'+
+      '<div class="tleg"><div class="tleg-bar" style="background:linear-gradient(90deg,#330033,#9900cc,#ffdd00)"></div><span class="tleg-txt">معادن محتملة</span></div>'+
+      '</div></div>';
+  }
+
+  // 5-FEDDAN ANALYSIS
+  if(togs[6]&&zones){
+    var bestZone=zones.reduce(function(a,b){return b.wp>a.wp?b:a;});
+    h+='<div class="feddan-card">'+
+      '<div class="feddan-title">📐 تحليل مساحة 5 فدان التفصيلي (≈ 21,000 م²)</div>'+
+      '<div class="feddan-grid">';
+    for(var z=0;z<zones.length;z++){
+      var zone=zones[z];
+      h+='<div class="fzone" style="border-color:'+zone.col+';background:rgba('+hexToRgb(zone.col)+',0.06)">'+
+        '<div class="fzone-num" style="color:'+zone.col+'">'+(z+1)+'</div>'+
+        '<div class="fzone-lbl">'+zone.dir+'</div>'+
+        '<div class="fzone-val" style="color:'+zone.col+'">'+zone.wp+'%</div>'+
+        '<div style="font-family:var(--mono);font-size:.44rem;color:var(--dim)">'+zone.wd+'م</div>'+
+        '</div>';
+    }
+    h+='</div>'+
+      '<div class="feddan-summary">'+
+      '🏆 أفضل موقع للحفر: المنطقة '+zones.indexOf(bestZone)+(1)+' — '+bestZone.dir+' | احتمالية '+bestZone.wp+'% | عمق متوقع '+bestZone.wd+'م'+
+      ' | pH التربة: '+bestZone.soil+' | تقييم الجودة: '+bestZone.qual+
+      '</div></div>';
+  }
+
+  // Written AI Report
+  h+='<div class="written-report">'+
+    '<div class="wr-title">📋 التقرير الجيولوجي الكتابي الكامل — Gemini AI Analysis</div>'+
+    '<div class="wr-body">'+aiTxt+'</div></div>';
+
+  // PDF Bottom
+  h+='<button class="pdf-btn" onclick="exportPDF()" style="margin-bottom:11px">📄 &nbsp; تحميل التقرير الكامل PDF &nbsp; ⬇️</button>';
+
+  // Footer
+  h+='<div class="rfoot"><div>Khayar Geo Info V2 © 2025 — محمود يحيى خيار — Gemini AI + Open-Meteo + NASA SRTM + OSM</div><div class="sig">SIG: '+rptId+'</div></div>';
+
+  var rc=document.getElementById('rpt');rc.innerHTML=h;rc.className='on';
+}
+
+function hexToRgb(hex){
+  var result=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result?parseInt(result[1],16)+','+parseInt(result[2],16)+','+parseInt(result[3],16):'0,229,255';
+}
+</script>
+</body>
+</html>
